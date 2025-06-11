@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Click Màu Đúng!</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 30px;
+    }
+    h1 {
+      color: #333;
+    }
+    .target-color {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      column-gap: 10px;
+      row-gap: 0px;
+      width: 1000px;
+      height: 600px;
+      overflow: auto;
+      margin: 20px auto;
+      padding: 10px;
+      border: 2px dashed #ccc;
+      box-sizing: border-box;
+      background-color: #fdfdfd;
+    }
+    .box {
+      width: 80px;
+      height: 80px;
+      border: 2px solid #999;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+    #timer, #score, #level-display, #lives-display {
+      font-size: 20px;
+      margin-top: 10px;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 18px;
+      color: red;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎯 Click Màu Đúng!</h1>
+  <div class="target-color">Hãy nhấn vào màu: <span id="target"></span></div>
+
+  <div class="grid" id="colorGrid"></div>
+
+  <div id="timer">⏰ Thời gian: <span id="timeLeft">6.00</span>s</div>
+  <div id="score">Điểm: <span id="points">0</span></div>
+  <div id="level-display">Level: <span id="level">1</span></div>
+  <div id="lives-display">❤️ Máu: <span id="lives">5</span></div>
+
+  <div id="message"></div>
+
+  <button onclick="startGame()">🔁 Chơi lại</button>
+  <button onclick="showHighScore()">🏆 Xem điểm cao nhất</button>
+
+  <script>
+    const colors = ["red", "blue", "green", "yellow", "purple", "orange", "pink", "brown", "cyan"];
+    let correctColor = "";
+    let timer;
+    let score = 0;
+    let level = 1;
+    let boxCount = 6;
+    let baseTime = 6;
+    let currentTime = baseTime;
+    let lives = 5;
+    const maxLevel = 20;
+    let gameIsOver = false;
+    let isPaused = false;
+    let remainingTime = 0;
+
+    function getRandomColor() {
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    function setupRound() {
+      if (gameIsOver || level > maxLevel) return;
+
+      const grid = document.getElementById("colorGrid");
+      grid.innerHTML = "";
+      correctColor = getRandomColor();
+      document.getElementById("target").textContent = correctColor;
+
+      const correctIndex = Math.floor(Math.random() * boxCount);
+      for (let i = 0; i < boxCount; i++) {
+        const box = document.createElement("div");
+        box.className = "box";
+        box.style.backgroundColor = (i === correctIndex) ? correctColor : getRandomColor();
+
+        box.onclick = function () {
+          if (gameIsOver || isPaused) return;
+
+          if (this.style.backgroundColor === correctColor) {
+            score++;
+            document.getElementById("points").textContent = score;
+
+            const highScore = localStorage.getItem("highScore") || 0;
+            if (score > highScore) {
+              localStorage.setItem("highScore", score);
+            }
+
+            if (score % 5 === 0) {  // ✅ TĂNG LEVEL MỖI 5 ĐIỂM
+              level++;
+              boxCount += 3;
+              currentTime = baseTime + (level - 1) * 0.25;
+              document.getElementById("level").textContent = level;
+            }
+
+            clearInterval(timer);
+            startRound();
+          } else {
+            clearInterval(timer);
+            handleMiss("Bạn chọn sai màu! Trừ 1 máu!");
+          }
+        };
+
+        grid.appendChild(box);
+      }
+    }
+
+    function handleMiss(msg) {
+      lives--;
+      document.getElementById("lives").textContent = lives;
+      document.getElementById("message").textContent = msg;
+      if (lives <= 0) {
+        gameOver("Bạn đã hết máu!");
+      } else {
+        setTimeout(() => {
+          if (!gameIsOver && !isPaused) startRound();
+        }, 1000);
+      }
+    }
+
+    function startTimer() {
+      let timeLeft = currentTime;
+      remainingTime = timeLeft;
+      document.getElementById("timeLeft").textContent = timeLeft.toFixed(2);
+
+      timer = setInterval(() => {
+        if (gameIsOver || isPaused) {
+          clearInterval(timer);
+          return;
+        }
+
+        timeLeft -= 0.1;
+        remainingTime = timeLeft;
+        document.getElementById("timeLeft").textContent = timeLeft.toFixed(2);
+
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          handleMiss("Hết giờ! Trừ 1 máu!");
+        }
+      }, 100);
+    }
+
+    function resumeGame() {
+      document.getElementById("message").textContent = "";
+      timer = setInterval(() => {
+        if (gameIsOver || isPaused) {
+          clearInterval(timer);
+          return;
+        }
+
+        remainingTime -= 0.1;
+        document.getElementById("timeLeft").textContent = remainingTime.toFixed(2);
+
+        if (remainingTime <= 0) {
+          clearInterval(timer);
+          handleMiss("Hết giờ! Trừ 1 máu!");
+        }
+      }, 100);
+    }
+
+    function startRound() {
+      if (gameIsOver || isPaused) return;
+      document.getElementById("message").textContent = "";
+      setupRound();
+      startTimer();
+    }
+
+    function startGame() {
+      gameIsOver = false;
+      isPaused = false;
+      score = 0;
+      level = 1;
+      boxCount = 6;
+      lives = 5;
+      currentTime = baseTime;
+      document.getElementById("points").textContent = 0;
+      document.getElementById("level").textContent = 1;
+      document.getElementById("lives").textContent = lives;
+      document.getElementById("message").textContent = "";
+      document.getElementById("colorGrid").innerHTML = "";
+      startRound();
+    }
+
+    function gameOver(msg) {
+      gameIsOver = true;
+      document.getElementById("message").textContent = msg + " 🛑 Game Over!";
+      document.getElementById("colorGrid").innerHTML = "";
+      clearInterval(timer);
+    }
+
+    function showHighScore() {
+      const highScore = localStorage.getItem("highScore") || 0;
+      alert("🏆 Điểm cao nhất: " + highScore);
+    }
+
+    document.addEventListener("keydown", function (event) {
+      if (event.code === "Space" && !gameIsOver) {
+        event.preventDefault();
+        isPaused = !isPaused;
+
+        if (isPaused) {
+          document.getElementById("message").textContent = "⏸ Trò chơi đã tạm dừng. Nhấn phím cách để tiếp tục.";
+          clearInterval(timer);
+        } else {
+          resumeGame();
+        }
+      }
+    });
+
+    window.onload = startGame;
+  </script>
+
+</body>
+</html>
